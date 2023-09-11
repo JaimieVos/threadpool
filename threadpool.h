@@ -20,6 +20,8 @@ public:
 	template<class F, class... Args>
 	void enqueue(F&& f, Args&&... args);
 
+	void join();
+
 private:
 	std::vector<std::thread> m_Workers;
 	std::queue<std::function<void()>> m_Tasks;
@@ -42,16 +44,7 @@ inline Threadpool::Threadpool(const size_t threadCount)
 
 inline Threadpool::~Threadpool()
 {
-	{
-		std::scoped_lock<std::mutex> lock(m_Mutex);
-
-		m_Stop = true;
-	}
-
-	m_Condition.notify_all();
-
-	for (std::thread& worker : m_Workers)
-		worker.join();
+	join();
 }
 
 template<class F, class... Args>
@@ -63,6 +56,20 @@ inline void Threadpool::enqueue(F&& f, Args&&... args)
 	}
 
 	m_Condition.notify_one();
+}
+
+void Threadpool::join()
+{
+	{
+		std::scoped_lock<std::mutex> lock(m_Mutex);
+		m_Stop = true;
+	}
+
+	m_Condition.notify_all();
+
+	for (std::thread& worker : m_Workers)
+		if (worker.joinable())
+			worker.join();
 }
 
 inline void Threadpool::process()

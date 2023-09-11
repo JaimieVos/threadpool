@@ -18,4 +18,6 @@ int main()
 	{
 		pool.enqueue(task, i);
 	}
+
+	std::cout << "Done" << '\n';
 }
